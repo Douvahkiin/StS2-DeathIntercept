@@ -36,7 +36,7 @@ Requires .NET 9.0 SDK and references to `sts2.dll`, `GodotSharp.dll`, and `0Harm
 
 ### Credits
 
-The combat reload logic is adapted from **[STS2-QuickReload](https://github.com/.../STS2-QuickReload)**, specifically the `QuickReloadRunner.RestartSinglePlayer()` flow — thank you for the reference implementation!
+The combat reload logic is adapted from **[STS2-QuickReload](https://github.com/mmmmie/STS2-QuickReload)**, specifically the `QuickReloadRunner.RestartSinglePlayer()` flow — thank you for the reference implementation!
 
 ---
 
@@ -44,7 +44,7 @@ The combat reload logic is adapted from **[STS2-QuickReload](https://github.com/
 
 ### 这是什么？
 
-**DeathIntercept（死亡拦截）**是一个《杀戮尖塔2》的 Mod，让你在角色阵亡时可以选择重打或放弃。不再直接结束对局并删除自动存档，而是暂停死亡流程，弹出对话框：
+**DeathIntercept**是一个《杀戮尖塔2》的 Mod，让你在角色阵亡时可以选择重打或放弃。不再直接结束对局并删除自动存档，而是暂停死亡流程，弹出对话框：
 
 | 按钮 | 行为 |
 |------|------|
@@ -72,5 +72,5 @@ dotnet build DeathIntercept.csproj
 
 ### 鸣谢
 
-战斗重载逻辑参考了 **[STS2-QuickReload](https://github.com/.../STS2-QuickReload)**，尤其是 `QuickReloadRunner.RestartSinglePlayer()` 的实现——感谢参考代码！
+战斗重载逻辑参考了 **[STS2-QuickReload](https://github.com/mmmmie/STS2-QuickReload)**，尤其是 `QuickReloadRunner.RestartSinglePlayer()` 的实现——感谢参考代码！
 
