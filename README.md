@@ -1,5 +1,7 @@
 # DeathIntercept / 死亡拦截
 
+![demo](./imgs/jibao.png)
+
 [English](#english) | [汉语](#汉语)
 
 ---
@@ -44,7 +46,7 @@ The combat reload logic is adapted from **[STS2-QuickReload](https://github.com/
 
 ### 这是什么？
 
-**DeathIntercept**是一个《杀戮尖塔2》的 Mod，让你在角色阵亡时可以选择重打或放弃。不再直接结束对局并删除自动存档，而是暂停死亡流程，弹出对话框：
+**DeathIntercept**是《杀戮尖塔2》的一个 Mod，让你在角色阵亡时可以选择重打或放弃。不再直接结束对局并删除自动存档，而是暂停死亡流程，弹出对话框：
 
 | 按钮 | 行为 |
 |------|------|
