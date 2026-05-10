@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="..\..\Sts2PathDiscovery.props" Condition="Exists('..\..\Sts2PathDiscovery.props')"/>
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <RootNamespace>DeathIntercept</RootNamespace>
+        <AssemblyName>DeathIntercept</AssemblyName>
+        <AppOutputBase>$(MSBuildProjectDirectory)\</AppOutputBase>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Reference Include="0Harmony">
+            <HintPath>$(Sts2DataDir)/0Harmony.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="GodotSharp">
+            <HintPath>$(Sts2DataDir)/GodotSharp.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="sts2">
+            <HintPath>$(Sts2DataDir)/sts2.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
+
+    <Target Name="CopyToModsFolderOnBuild" AfterTargets="AfterBuild">
+        <Message Text="Copying DeathIntercept.dll and manifest to mods folder ($(ModsPath)DeathIntercept/)." Importance="high" />
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModsPath)DeathIntercept/" />
+        <Copy SourceFiles="DeathIntercept.json" DestinationFolder="$(ModsPath)DeathIntercept/" />
+    </Target>
+</Project>

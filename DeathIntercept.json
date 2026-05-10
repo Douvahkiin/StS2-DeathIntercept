@@ -1,0 +1,11 @@
+{
+  "id": "DeathIntercept",
+  "name": "DeathIntercept",
+  "author": "",
+  "description": "When you die in combat, you can choose to retry the fight instead of ending the run.",
+  "version": "v1.0.0",
+  "has_pck": false,
+  "has_dll": true,
+  "dependencies": [],
+  "affects_gameplay": true
+}
