@@ -19,7 +19,7 @@
 
 ### How it works
 
-1. Intercepts `CreatureCmd.Kill` *before* the death music and game-over logic run.
+1. Intercepts `NRun.ShowGameOverScreen` *after* all death-processing logic (including Bottled Fairy, Lizard Tail) has completed.
 2. Preserves the run save by blocking `SaveManager.DeleteCurrentRun`.
 3. On retry, reloads the combat in-place using the same flow as the main menu "Continue" button — no main menu transition, no extra clicks.
 
@@ -55,7 +55,7 @@ The combat reload logic is adapted from **[STS2-QuickReload](https://github.com/
 
 ### 原理
 
-1. 在战败 BGM 和游戏结束逻辑运行**之前**拦截 `CreatureCmd.Kill`。
+1. 在所有死亡处理逻辑（包括瓶装精灵、蜥蜴尾巴等防死道具）完成后拦截 `NRun.ShowGameOverScreen`。
 2. 通过拦截 `SaveManager.DeleteCurrentRun` 保护战斗前存档不被删除。
 3. 选择重打时，复用主菜单「继续」按钮的流程原地重载战斗——无需返回主菜单，无需额外点击。
 

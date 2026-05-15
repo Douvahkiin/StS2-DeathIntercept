@@ -1,14 +1,10 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using HarmonyLib;
-using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Combat;
-using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
-using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Helpers;
 using MegaCrit.Sts2.Core.Logging;
 using MegaCrit.Sts2.Core.Multiplayer;
@@ -23,35 +19,44 @@ namespace DeathIntercept.Patches;
 [HarmonyPatch]
 public static class DeathInterceptPatches
 {
-    private static bool _allowGameOver;
-    private static IReadOnlyCollection<Creature>? _cachedCreatures;
-    private static bool _cachedForce;
+    private static bool _isGivingUp;
+    private static SerializableRun? _cachedSerializableRun;
 
     /// <summary>
-    /// Intercept BEFORE the BGM code runs. CreatureCmd.Kill checks all-players-dead
-    /// and then calls LoseCombat → StopMusic → PlayMusic (death BGM) → OnEnded → ShowGameOverScreen.
-    /// By returning false here, we skip the entire chain, so the combat BGM keeps playing.
+    /// Block the death BGM (play-pause-play) until the player actually chooses Give Up.
     /// </summary>
-    [HarmonyPatch(typeof(CreatureCmd), nameof(CreatureCmd.Kill),
-        typeof(IReadOnlyCollection<Creature>), typeof(bool))]
+    [HarmonyPatch(typeof(NAudioManager), nameof(NAudioManager.PlayMusic))]
     [HarmonyPrefix]
-    private static bool Prefix_Kill(IReadOnlyCollection<Creature> creatures, bool force)
+    private static bool Prefix_PlayMusic(string music)
     {
-        if (_allowGameOver)
+        if (!_isGivingUp
+            && CombatManager.Instance.IsAboutToLose
+            && music == "event:/temp/sfx/game_over")
+        {
+            Log.Info("[DeathIntercept] Suppressing death BGM until player decides.");
+            return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Block OnEnded(false) from updating progress and run history when the player
+    /// died in combat. On retry, these updates would leave behind a fake "loss" record.
+    /// </summary>
+    [HarmonyPatch(typeof(RunManager), nameof(RunManager.OnEnded))]
+    [HarmonyPrefix]
+    private static bool Prefix_OnEnded(bool isVictory)
+    {
+        if (_isGivingUp)
             return true;
 
-        var runState = creatures.FirstOrDefault(c => c.IsPlayer)?.Player?.RunState;
-        if (runState == null || !runState.Players.All(p => p.Creature.IsDead))
-            return true;
+        if (!isVictory && CombatManager.Instance.IsAboutToLose)
+        {
+            Log.Info("[DeathIntercept] Blocking OnEnded(false) to prevent fake loss record.");
+            return false;
+        }
 
-        if (!CombatManager.Instance.IsInProgress)
-            return true;
-
-        Log.Info("[DeathIntercept] All players dead - intercepting before BGM changes.");
-        _cachedCreatures = creatures;
-        _cachedForce = force;
-        ShowRetryDialog();
-        return false;
+        return true;
     }
 
     /// <summary>
@@ -63,7 +68,7 @@ public static class DeathInterceptPatches
     [HarmonyPrefix]
     private static bool Prefix_DeleteCurrentRun()
     {
-        if (_allowGameOver)
+        if (_isGivingUp)
             return true;
 
         if (CombatManager.Instance.IsAboutToLose)
@@ -76,28 +81,42 @@ public static class DeathInterceptPatches
     }
 
     /// <summary>
-    /// Fallback intercept for ShowGameOverScreen. Normally the Kill Prefix handles
-    /// the interception, but if something bypasses it, this catches and shows the dialog.
+    /// Intercepts the Game Over screen. If the player died in combat, shows a retry
+    /// dialog instead. On retry, reloads the combat directly from the pre-combat save.
+    /// On give up, deletes the save and proceeds normally.
+    ///
+    /// This runs AFTER CreatureCmd.Kill has completed all its death-processing logic
+    /// (including Bottled Fairy / Lizard Tail / other ShouldDie hooks), so the
+    /// IsDead check is accurate by this point.
     /// </summary>
     [HarmonyPatch(typeof(NRun), nameof(NRun.ShowGameOverScreen))]
     [HarmonyPrefix]
     private static bool Prefix_ShowGameOverScreen(NRun __instance, SerializableRun serializableRun)
     {
-        if (_allowGameOver)
+        if (_isGivingUp)
         {
-            _allowGameOver = false;
+            _isGivingUp = false;
             return true;
         }
 
         if (!CombatManager.Instance.IsAboutToLose)
             return true;
 
-        Log.Info("[DeathIntercept] Fallback: showing retry dialog at ShowGameOverScreen.");
-        ShowRetryDialog();
+        // OnEnded was blocked, so serializableRun may be null. Load from save.
+        if (serializableRun == null)
+        {
+            var saveResult = SaveManager.Instance.LoadRunSave();
+            if (saveResult.Success && saveResult.SaveData != null)
+                serializableRun = saveResult.SaveData;
+        }
+
+        Log.Info("[DeathIntercept] All players dead - showing retry dialog.");
+        _cachedSerializableRun = serializableRun;
+        ShowRetryDialog(__instance);
         return false;
     }
 
-    private static void ShowRetryDialog()
+    private static void ShowRetryDialog(Node parent)
     {
         var dialog = new AcceptDialog
         {
@@ -118,15 +137,17 @@ public static class DeathInterceptPatches
         {
             Log.Info("[DeathIntercept] Player chose to give up.");
             dialog.QueueFree();
-            _allowGameOver = true;
-            TaskHelper.RunSafely(CreatureCmd.Kill(_cachedCreatures!, _cachedForce));
+            _isGivingUp = true;
+
+            NAudioManager.Instance?.PlayMusic("event:/temp/sfx/game_over");
+            SerializableRun sr = RunManager.Instance.OnEnded(isVictory: false);
+            SaveManager.Instance!.DeleteCurrentRun();
+            NRun.Instance!.ShowGameOverScreen(sr);
         };
 
-        var sceneTree = (SceneTree)Engine.GetMainLoop();
-        sceneTree.Root.AddChild(dialog);
+        parent.AddChild(dialog);
         dialog.PopupCentered();
 
-        // Color buttons after they are in the scene tree
         Button? okBtn = dialog.GetOkButton();
         if (okBtn != null)
             okBtn.SelfModulate = new Color(0.5f, 1f, 0.5f);
